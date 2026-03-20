@@ -30,7 +30,7 @@ def _http_error(
     return HTTPException(status_code=status_code, detail=detail, headers=headers)
 
 
-@router.post("/upload")
+@router.post("/upload", status_code=202)
 async def upload(file: UploadFile = File(...)):
     """
     Accept a file upload, validate it, and enqueue it for background processing.
@@ -64,8 +64,7 @@ async def upload(file: UploadFile = File(...)):
             await db.update_document_status(
                 doc_id=doc_id,
                 status="failed",
-                failed_stage="queued",
-                error_message="Queue is at capacity. Please retry later.",
+                error={"stage": "queued", "message": "Queue is at capacity. Please retry later."},
             )
             raise _http_error(
                     status_code=503,
@@ -111,8 +110,7 @@ async def upload(file: UploadFile = File(...)):
             await db.update_document_status(
                 doc_id=doc_id,
                 status="failed",
-                failed_stage="queued",
-                error_message=str(e)[:500],
+                error={"stage": "queued", "message": str(e)[:500]},
             )
         logger.error(f"Unexpected error during upload of {file.filename!r}: {e}")
         raise _http_error(
