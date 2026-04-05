@@ -7,7 +7,7 @@ from core.config import config
 from middleware.rate_limit import limiter
 
 import db
-from services.ingestion_pipeline import IngestionPipeline, UploadPipelineError
+from services.ingestion_pipeline import IngestionPipeline, UploadPipelineError, _sanitize_filename
 from services.queue_service import QueueJob, ingestion_queue
 
 logger = logging.getLogger(__name__)
@@ -46,17 +46,18 @@ async def upload(request: Request, file: UploadFile = File(...)):
 
     try:
         file_bytes = await file.read()
+        safe_filename = _sanitize_filename(file.filename)
 
         # Validate synchronously before touching the DB
         ingestion_pipeline.validate_file(file, file_bytes)
 
         # Persist the document record so the status endpoint works immediately
-        doc_id = await db.create_document(file.filename)
+        doc_id = await db.create_document(safe_filename)
         await db.update_document_status(doc_id=doc_id, status="queued")
 
         job = QueueJob(
             doc_id=doc_id,
-            file_name=file.filename,
+            file_name=safe_filename,
             content_type=file.content_type,
             file_bytes=file_bytes,
         )
@@ -80,7 +81,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
                 )
 
         logger.info(
-            f"Accepted upload {file.filename!r} → document {doc_id} "
+            f"Accepted upload {safe_filename!r} → document {doc_id} "
             f"at queue position {queue_position}"
         )
 
