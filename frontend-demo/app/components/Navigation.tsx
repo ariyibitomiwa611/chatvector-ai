@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -16,23 +17,29 @@ const SECTION_LINKS = [
 function NavLinks({
   onNavigate,
   pathname,
+  centerOnMobile = false,
 }: {
   onNavigate?: () => void;
   pathname: string | null;
+  /** Stack + center link text (hamburger menu on small screens only). */
+  centerOnMobile?: boolean;
 }) {
   return (
     <>
       {SECTION_LINKS.map(({ label, href }) => {
         const chatActive = href === "/chat" && pathname === "/chat";
         return (
-          <li key={label}>
+          <li
+            key={label}
+            className={centerOnMobile ? "w-full text-center" : undefined}
+          >
             <Link
               href={href}
               onClick={onNavigate}
-              className={`text-[0.9rem] no-underline transition-colors duration-200 ${
+              className={`text-[1.05rem] no-underline transition-colors duration-200 ${
                 chatActive
                   ? "text-accent"
-                  : "text-muted hover:text-foreground"
+                  : "text-white hover:text-accent"
               }`}
             >
               {label}
@@ -50,7 +57,7 @@ function GitHubButton({ className }: { className?: string }) {
       href={GITHUB_REPO}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex cursor-pointer items-center justify-center rounded-md border border-accent bg-transparent px-[18px] py-[7px] text-[0.85rem] text-accent no-underline transition-all duration-200 hover:bg-accent hover:text-black ${className ?? ""}`}
+      className={`inline-flex cursor-pointer items-center justify-center rounded-md border border-white/25 bg-transparent px-[18px] py-[7px] text-[1.05rem] text-white no-underline transition-all duration-200 hover:border-accent hover:bg-accent/10 hover:text-accent ${className ?? ""}`}
     >
       GitHub
     </a>
@@ -70,12 +77,19 @@ export default function Navigation() {
       <nav className="mx-auto flex min-h-[60px] max-w-[1100px] items-center justify-between gap-4 px-4">
         <Link
           href="/"
-          className="shrink-0 font-mono text-[1.05rem] font-bold text-accent no-underline"
+          className="flex shrink-0 items-center gap-2.5 font-mono text-[1.25rem] font-bold no-underline"
         >
-          Chat
-          <span className="text-foreground/45">&lt;</span>
-          Vector
-          <span className="text-foreground/45">&gt;</span>
+          <Image
+            src="/chatvector-logo.svg"
+            alt=""
+            width={40}
+            height={40}
+            unoptimized
+            className="size-10 shrink-0"
+          />
+          <span className="text-[1.5rem] bg-gradient-to-r from-accent to-blue bg-clip-text text-transparent">
+            ChatVector
+          </span>
         </Link>
 
         <ul className="m-0 hidden list-none flex-1 flex-row flex-wrap items-center justify-center gap-8 p-0 md:flex">
@@ -89,7 +103,7 @@ export default function Navigation() {
             aria-expanded={mobileOpen}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             onClick={() => setMobileOpen((o) => !o)}
-            className="cursor-pointer rounded-md border border-border bg-transparent px-3 py-2 text-base leading-none text-foreground md:hidden"
+            className="cursor-pointer rounded-md border border-border bg-transparent px-3 py-2 text-lg leading-none text-white hover:text-blue md:hidden"
           >
             {mobileOpen ? "✕" : "☰"}
           </button>
@@ -97,14 +111,15 @@ export default function Navigation() {
       </nav>
 
       {mobileOpen ? (
-        <div className="flex flex-col gap-4 border-t border-border p-4 md:hidden">
-          <ul className="m-0 flex list-none flex-col gap-4 p-0">
+        <div className="flex flex-col items-center gap-4 border-t border-border p-4 md:hidden">
+          <ul className="m-0 flex w-full list-none flex-col items-center gap-4 p-0">
             <NavLinks
               pathname={pathname}
+              centerOnMobile
               onNavigate={() => setMobileOpen(false)}
             />
           </ul>
-          <div className="self-start">
+          <div className="flex justify-center">
             <GitHubButton />
           </div>
         </div>

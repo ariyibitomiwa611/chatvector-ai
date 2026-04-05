@@ -22,7 +22,7 @@ function deduplicatedSources(sources: ChatSource[]): ChatSource[] {
 
 export default function MessageList({ messages, inflight, bottomRef }: Props) {
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 space-y-4">
       {messages.map((msg) => (
         <div
           key={msg.id}
@@ -36,7 +36,7 @@ export default function MessageList({ messages, inflight, bottomRef }: Props) {
             {msg.sender === "ai" ? <Bot size={16} /> : <User size={16} />}
           </div>
           <div
-            className={`max-w-[75%] md:max-w-[60%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+            className={`max-w-[75%] md:max-w-[60%] whitespace-pre-wrap break-words px-4 py-3 rounded-2xl text-sm leading-relaxed ${
               msg.sender === "ai" ? "bg-surface text-foreground rounded-bl-none" : "bg-accent text-black rounded-br-none"
             }`}
           >
