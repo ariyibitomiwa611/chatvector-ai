@@ -1,10 +1,13 @@
 import time
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI,Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import db
 from core.config import STALE_INGESTION_STATUSES, config
@@ -58,6 +61,31 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, StarletteHTTPException):
+        return JSONResponse(
+            status_code=exc.status_code, 
+            content={"detail": exc.detail},
+            headers=getattr(exc, "headers", None)
+        )
+    
+
+    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+    logger.error(f"Unhandled exception [req_id={request_id}] for {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": {
+                "code": "internal_error",
+                "message": "An unexpected error occurred."
+            }
+        }
+    )
+
+
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(SlowAPIMiddleware)
 
