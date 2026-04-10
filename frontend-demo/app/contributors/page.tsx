@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 import ErrorState from "../components/ErrorState";
 
 type Contributor = {
@@ -45,10 +46,23 @@ export default function ContributorsPage() {
 
   return (
     <div className="max-w-[720px] mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold mb-6 text-foreground">Contributors</h1>
+      <p className="font-mono text-[0.78rem] uppercase tracking-[2px] text-accent mb-2">
+        {"// contributors"}
+      </p>
 
       {loading && (
-        <p className="text-muted text-center mt-6">Loading contributors...</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div
+              key={i}
+              className="animate-pulse bg-surface border border-border rounded-lg p-4 flex flex-col items-center gap-3"
+            >
+              <div className="w-16 h-16 rounded-full bg-border" />
+              <div className="h-3 w-48 rounded bg-border" />
+              <div className="h-3 w-28 rounded bg-border" />
+            </div>
+          ))}
+        </div>
       )}
 
       {error && (
@@ -71,10 +85,12 @@ export default function ContributorsPage() {
               rel="noopener noreferrer"
               className="bg-surface border border-border p-4 rounded-lg flex flex-col items-center hover:border-accent hover:scale-[1.02] transition"
             >
-              <img
+              <Image
                 src={c.avatar_url}
                 alt={c.login}
-                className="w-16 h-16 rounded-full mb-3"
+                width={64}
+                height={64}
+                className="rounded-full mb-3"
               />
 
               <p className="font-mono text-accent">@{c.login}</p>
