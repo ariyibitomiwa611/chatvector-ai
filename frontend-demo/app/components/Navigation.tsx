@@ -9,6 +9,7 @@ import { useState } from "react";
 const GITHUB_REPO = "https://github.com/chatvector-ai/chatvector-ai";
 
 const MAIN_NAV_LINKS = [
+  { label: "About", href: "/about" },
   { label: "Chat", href: "/chat" },
   { label: "Contributors", href: "/contributors" },
 ] as const;
