@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 
 type Props = {
@@ -15,12 +17,22 @@ export default function ErrorState({
 }: Props) {
   return (
     <div className="flex flex-col items-center text-center gap-3">
+      {/* Both images rendered; CSS shows/hides based on data-theme on <html> */}
       <Image
-        src="/redirect-logo.svg"
+        src="/redirect-logo-dark.svg"
         alt="Error logo"
-        width={80}
-        height={80}
+        width={160}
+        height={160}
         priority
+        className="[[data-theme=light]_&]:hidden"
+      />
+      <Image
+        src="/redirect-logo-light.svg"
+        alt="Error logo"
+        width={160}
+        height={160}
+        priority
+        className="hidden [[data-theme=light]_&]:block"
       />
       <p className="font-mono text-[0.78rem] uppercase tracking-[2px] text-accent">
         {kicker}

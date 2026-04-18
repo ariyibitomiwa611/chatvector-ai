@@ -23,6 +23,22 @@
   --subtle: #3d4555;
   --accent: #00e5a0;
   --blue: #0080ff;
+  /* Theme-invariant token — code blocks always render on a dark surface */
+  --code-bg: #111418;
+  /* Nav scrim — 88% opacity background that tracks the active theme */
+  --nav-bg: rgba(10, 12, 16, 0.88);
+}
+
+[data-theme="light"] {
+  --background: #ffffff;
+  --foreground: #0a0c10;
+  --surface: #f4f5f7;
+  --border: #e2e5ea;
+  --muted: #5a6270;
+  --subtle: #9ba3af;
+  --accent: #00c48a;
+  --blue: #0070e0;
+  --nav-bg: rgba(255, 255, 255, 0.88);
 }
 
 @theme inline {
@@ -35,6 +51,7 @@
   --color-subtle: var(--subtle);
   --color-accent: var(--accent);
   --color-blue: var(--blue);
+  --color-code-bg: var(--code-bg);
 
   /* Fonts */
   --font-sans: 'DM Sans', sans-serif;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import ThemeToggle from "./ThemeToggle";
 
 const GITHUB_REPO = "https://github.com/chatvector-ai/chatvector-ai";
 
@@ -52,7 +53,7 @@ function NavLinks({
               className={`text-[1.05rem] no-underline transition-colors duration-200 ${
                 isActive
                   ? "text-accent"
-                  : "text-white hover:text-accent"
+                  : "text-foreground hover:text-accent"
               }`}
             >
               {label}
@@ -70,7 +71,7 @@ function GitHubButton({ className }: { className?: string }) {
       href={GITHUB_REPO}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex cursor-pointer items-center justify-center rounded-md border border-white/25 bg-transparent px-[18px] py-[7px] text-[1.05rem] text-white no-underline transition-all duration-200 hover:border-accent hover:bg-accent/10 hover:text-accent ${className ?? ""}`}
+      className={`inline-flex cursor-pointer items-center justify-center rounded-md border border-border bg-transparent px-[18px] py-[7px] text-[1.05rem] text-foreground no-underline transition-all duration-200 hover:border-accent hover:bg-accent/10 hover:text-accent ${className ?? ""}`}
     >
       GitHub
     </a>
@@ -87,21 +88,30 @@ export default function Navigation() {
   return (
     <header
       className="sticky top-0 z-[100] border-b border-border backdrop-blur-[14px]"
-      style={{ background: "rgba(10,12,16,0.88)" }}
+      style={{ background: "var(--nav-bg)" }}
     >
-      {/* Header scrim: 88% of page background rgba — inline for exact match with backdrop-blur */}
+      {/* Header scrim: 88% of active theme background — see --nav-bg token in globals.css */}
       <nav className="mx-auto flex min-h-[60px] max-w-[1100px] items-center justify-between gap-4 px-4">
         <Link
           href="/"
           className="flex shrink-0 items-center font-mono text-[1.25rem] font-bold no-underline"
         >
+          {/* Both images rendered; CSS shows/hides based on data-theme on <html> */}
           <Image
-            src="/chatvector-logo.svg"
+            src="/chatvector-logo-dark.svg"
             alt=""
             width={40}
             height={40}
             unoptimized
-            className="size-10 shrink-0"
+            className="size-10 shrink-0 [[data-theme=light]_&]:hidden"
+          />
+          <Image
+            src="/chatvector-logo-light.svg"
+            alt=""
+            width={40}
+            height={40}
+            unoptimized
+            className="size-10 shrink-0 hidden [[data-theme=light]_&]:block"
           />
           <span className="text-[1.5rem] bg-gradient-to-r from-accent to-blue bg-clip-text text-transparent">
             ChatVector
@@ -117,7 +127,7 @@ export default function Navigation() {
               className={`flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[1.05rem] no-underline transition-colors duration-200 ${
                 docsActive
                   ? "text-accent"
-                  : "text-white hover:text-accent"
+                  : "text-foreground hover:text-accent"
               }`}
             >
               Docs
@@ -148,12 +158,13 @@ export default function Navigation() {
 
         <div className="flex shrink-0 items-center gap-3">
           <GitHubButton className="hidden md:inline-flex" />
+          <ThemeToggle />
           <button
             type="button"
             aria-expanded={mobileOpen}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             onClick={() => setMobileOpen((o) => !o)}
-            className="cursor-pointer rounded-md border border-border bg-transparent px-3 py-2 text-lg leading-none text-white hover:text-blue md:hidden"
+            className="cursor-pointer rounded-md border border-border bg-transparent px-3 py-2 text-lg leading-none text-foreground hover:text-blue md:hidden"
           >
             {mobileOpen ? "✕" : "☰"}
           </button>
@@ -176,7 +187,7 @@ export default function Navigation() {
                 className={`inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[1.05rem] no-underline transition-colors duration-200 ${
                   docsActive
                     ? "text-accent"
-                    : "text-white hover:text-accent"
+                    : "text-foreground hover:text-accent"
                 }`}
               >
                 Docs
@@ -197,7 +208,7 @@ export default function Navigation() {
                           setMobileOpen(false);
                           setDocsOpen(false);
                         }}
-                        className="block px-4 py-2 text-[0.9rem] text-muted no-underline transition-colors hover:text-foreground"
+                        className="block px-4 py-2 text-[0.9rem] text-foreground no-underline transition-colors hover:text-accent"
                       >
                         {label}
                       </Link>
