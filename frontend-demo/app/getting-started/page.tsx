@@ -2,11 +2,11 @@ import { DocLayout } from "@/app/components/DocLayout";
 import { DocPageHeader } from "@/app/components/DocPageHeader";
 import { Kicker } from "@/app/components/Kicker";
 
+import CodeBlock from "../components/CodeBlock";
+
 const bodyClass = "text-foreground/90 text-[1rem] leading-[1.8]";
 const cardClass =
   "rounded-xl border border-border bg-surface p-6 transition-colors hover:border-accent/40";
-const codeClass =
-  "rounded-xl border border-border bg-surface px-5 py-4 font-mono text-[0.82rem] leading-[1.75] text-foreground";
 
 export default function GettingStartedPage() {
   return (
@@ -62,10 +62,11 @@ export default function GettingStartedPage() {
                   Create the backend environment file.
                 </span>
                 <div className="mt-3">
-                  <pre className={codeClass}>cp backend/.env.example backend/.env</pre>
+                  <CodeBlock code="cp backend/.env.example backend/.env" language="bash" />
                 </div>
                 <p className="mt-3 text-[0.98rem] leading-[1.7] text-foreground/80">
-                  Edit the file and set <span className="text-foreground">GEN_AI_KEY</span>.
+                  Edit the file and set{" "}
+                  <span className="text-foreground">GEN_AI_KEY</span>.
                 </p>
               </li>
               <li>
@@ -73,12 +74,15 @@ export default function GettingStartedPage() {
                   Create the frontend environment file.
                 </span>
                 <div className="mt-3">
-                  <pre className={codeClass}>
-                    {`NEXT_PUBLIC_API_URL=http://localhost:8000`}
-                  </pre>
+                  <CodeBlock
+                    code="NEXT_PUBLIC_API_URL=http://localhost:8000"
+                    language="text"
+                  />
                 </div>
                 <p className="mt-3 text-[0.98rem] leading-[1.7] text-foreground/80">
-                  Save this as <span className="text-foreground">frontend-demo/.env.local</span>.
+                  Save this as{" "}
+                  <span className="text-foreground">frontend-demo/.env.local</span>
+                  .
                 </p>
               </li>
               <li>
@@ -86,7 +90,7 @@ export default function GettingStartedPage() {
                   Launch the backend stack.
                 </span>
                 <div className="mt-3">
-                  <pre className={codeClass}>docker compose up --build</pre>
+                  <CodeBlock code="docker compose up --build" language="bash" />
                 </div>
               </li>
               <li>
@@ -94,12 +98,13 @@ export default function GettingStartedPage() {
                   Start the frontend demo.
                 </span>
                 <div className="mt-3 space-y-2">
-                  <pre className={codeClass}>cd frontend-demo</pre>
-                  <pre className={codeClass}>npm install</pre>
-                  <pre className={codeClass}>npm run dev</pre>
+                  <CodeBlock code="cd frontend-demo" language="bash" />
+                  <CodeBlock code="npm install" language="bash" />
+                  <CodeBlock code="npm run dev" language="bash" />
                 </div>
                 <p className="mt-3 text-[0.98rem] leading-[1.7] text-foreground/80">
-                  Frontend runs at <span className="text-foreground">http://localhost:3000</span>.
+                  Frontend runs at{" "}
+                  <span className="text-foreground">http://localhost:3000</span>.
                 </p>
               </li>
             </ol>
@@ -116,7 +121,8 @@ export default function GettingStartedPage() {
           <div className={cardClass}>
             <div className="space-y-3 text-[0.98rem] leading-[1.7] text-foreground/90">
               <p>
-                Root: <span className="text-foreground">http://localhost:8000</span>
+                Root:{" "}
+                <span className="text-foreground">http://localhost:8000</span>
               </p>
               <p>
                 Swagger UI:{" "}
@@ -124,9 +130,12 @@ export default function GettingStartedPage() {
               </p>
             </div>
             <div className="mt-6 space-y-4">
-              <pre className={codeClass}>
-                {`POST /upload    -> upload a PDF, returns document_id\nGET  /documents/{document_id}/status\nPOST /chat      -> ask questions with citations`}
-              </pre>
+              <CodeBlock
+                code={`POST /upload    -> upload a PDF, returns document_id
+GET  /documents/{document_id}/status
+POST /chat      -> ask questions with citations`}
+                language="text"
+              />
             </div>
           </div>
         </section>
@@ -138,7 +147,9 @@ export default function GettingStartedPage() {
               <table className="w-full border-collapse text-left text-[0.95rem] text-foreground/90">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="py-3 pr-4 font-medium text-foreground">Command</th>
+                    <th className="py-3 pr-4 font-medium text-foreground">
+                      Command
+                    </th>
                     <th className="py-3 font-medium text-foreground">Purpose</th>
                   </tr>
                 </thead>
@@ -171,7 +182,9 @@ export default function GettingStartedPage() {
                     <td className="py-3 pr-4 font-mono text-foreground">
                       docker compose down -v
                     </td>
-                    <td className="py-3 text-foreground/80">Stop and remove data volumes</td>
+                    <td className="py-3 text-foreground/80">
+                      Stop and remove data volumes
+                    </td>
                   </tr>
                 </tbody>
               </table>

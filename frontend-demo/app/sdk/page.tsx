@@ -2,6 +2,8 @@ import { DocLayout } from "@/app/components/DocLayout";
 import { DocPageHeader } from "@/app/components/DocPageHeader";
 import { Kicker } from "@/app/components/Kicker";
 
+import CodeBlock from "../components/CodeBlock";
+
 export default function SdkPage() {
   return (
     <DocLayout>
@@ -32,9 +34,7 @@ export default function SdkPage() {
             <p className="mb-3 text-foreground/90">
               Install directly from the repo:
             </p>
-            <pre className="overflow-x-auto rounded-xl border border-border bg-surface p-4 font-mono text-[0.82rem]">
-              <code>pip install ./sdk/python</code>
-            </pre>
+            <CodeBlock code="pip install ./sdk/python" language="bash" />
           </section>
 
           <section>
@@ -43,7 +43,7 @@ export default function SdkPage() {
               Upload a document, wait for ingestion to complete, then ask a
               question:
             </p>
-            <pre className="overflow-x-auto rounded-xl border border-border bg-surface p-4 font-mono text-[0.82rem]">
+            <CodeBlock language="python" filename="upload_and_chat.py">
               <code>{`from chatvector import ChatVectorClient
 
 with ChatVectorClient("http://localhost:8000") as client:
@@ -61,7 +61,7 @@ with ChatVectorClient("http://localhost:8000") as client:
     # Print cited sources
     for source in answer.sources:
         print(source.file_name, source.page_number)`}</code>
-            </pre>
+            </CodeBlock>
           </section>
 
           <section>
@@ -70,12 +70,13 @@ with ChatVectorClient("http://localhost:8000") as client:
               If your backend is configured with a bearer token, pass it at
               client initialization:
             </p>
-            <pre className="overflow-x-auto rounded-xl border border-border bg-surface p-4 font-mono text-[0.82rem]">
-              <code>{`client = ChatVectorClient(
+            <CodeBlock
+              code={`client = ChatVectorClient(
     base_url="http://localhost:8000",
     api_key="your-bearer-token"
-)`}</code>
-            </pre>
+)`}
+              language="python"
+            />
             <p className="mt-3 text-foreground/90">
               The token is optional. Omit it if your backend does not require
               authentication.
@@ -115,9 +116,9 @@ with ChatVectorClient("http://localhost:8000") as client:
                 </div>
               ))}
             </div>
-
-            <pre className="mt-5 overflow-x-auto rounded-xl border border-border bg-surface p-4 font-mono text-[0.82rem]">
-              <code>{`from chatvector.exceptions import (
+            <div className="mt-5">
+              <CodeBlock language="python" filename="error_handling.py">
+                <code>{`from chatvector.exceptions import (
     ChatVectorAPIError,
     ChatVectorAuthError,
     ChatVectorRateLimitError,
@@ -136,7 +137,8 @@ except ChatVectorTimeoutError:
     print("Document took too long to process.")
 except ChatVectorAPIError as e:
     print("SDK error:", e)`}</code>
-            </pre>
+              </CodeBlock>
+            </div>
           </section>
 
           <section>
