@@ -1,3 +1,4 @@
+from core.auth import AuthContext
 """
 Tests for AsyncioIngestionQueue, TokenBucketRateLimiter, and queue-related
 upload/status behaviour.
