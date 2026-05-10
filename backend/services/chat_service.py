@@ -5,6 +5,7 @@ from typing import Optional, AsyncGenerator
 
 from core.auth import AuthContext, get_current_tenant
 from core.config import config
+from core.session import SessionContext
 from db import find_similar_chunks
 from services.context_service import build_context_from_chunks
 from services.query_service import transform_query
@@ -167,6 +168,7 @@ async def answer_question_for_document(
     match_count: int = 5,
     auth: Optional[AuthContext] = None,
     session_id: Optional[str] = None,
+    session_context: Optional[SessionContext] = None,
 ) -> dict:
     """
     Orchestrate the chat flow for a single question/document pair.
@@ -191,7 +193,7 @@ async def answer_question_for_document(
                 seen_chunk_keys.add(key)
                 all_chunks.append(chunk)
     matching_chunks = all_chunks
-    context = build_context_from_chunks(matching_chunks)
+    context = build_context_from_chunks(matching_chunks, session_context=session_context)
     answer = await generate_answer(question, context)
 
     base: dict = {
@@ -222,6 +224,7 @@ async def answer_question_stream_for_document(
     doc_id: str,
     match_count: int = 5,
     auth: Optional[AuthContext] = None,
+    session_context: Optional[SessionContext] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Orchestrate the chat flow for a single question/document pair, yielding
@@ -247,7 +250,7 @@ async def answer_question_stream_for_document(
                     seen_chunk_keys.add(key)
                     all_chunks.append(chunk)
         matching_chunks = all_chunks
-        context = build_context_from_chunks(matching_chunks)
+        context = build_context_from_chunks(matching_chunks, session_context=session_context)
 
         async for chunk in generate_answer_stream(question, context):
             err = _structured_error_from_llm_answer(chunk)
@@ -266,9 +269,13 @@ async def answer_question_stream_for_document(
 async def answer_questions_for_documents_batch(
     queries: list[dict],
     auth: Optional[AuthContext] = None,
+    session_context: Optional[SessionContext] = None,
 ) -> list[dict]:
     """
     Process multiple question/document retrieval requests in one call.
+
+    Note: The `session_context` provided is shared across all queries in the batch.
+    It is assumed that a batch does not mix queries from different sessions.
     """
     if not queries:
         return []
@@ -359,7 +366,7 @@ async def answer_questions_for_documents_batch(
                         seen_chunk_keys.add(key)
                         all_chunks.append(chunk)
             matching_chunks = all_chunks
-            context = build_context_from_chunks(matching_chunks)
+            context = build_context_from_chunks(matching_chunks, session_context=session_context)
             answer = await generate_answer(query["question"], context)
 
             sources = _build_sources(matching_chunks)

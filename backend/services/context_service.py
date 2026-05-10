@@ -1,12 +1,16 @@
 import logging
 import os
+from typing import Optional
+from core.session import SessionContext
 
 logger = logging.getLogger(__name__)
 
 MAX_CONTEXT_CHARS: int = int(os.getenv("MAX_CONTEXT_CHARS", "32000"))
 
 
-def build_context_from_chunks(chunks: list) -> str:
+def build_context_from_chunks(
+    chunks: list, session_context: Optional[SessionContext] = None
+) -> str:
     """
     Combine chunk texts into a single context string for the LLM.
 
@@ -20,6 +24,21 @@ def build_context_from_chunks(chunks: list) -> str:
     total_chars = 0
     separator = "\n\n"
     sep_len = len(separator)
+
+    # 1. Inject Session Context (if provided)
+    if session_context:
+        # TODO(Phase 3B): Future integration point for semantic memory retrieval.
+        session_lines = ["[Session History]"]
+        if session_context.recent_queries:
+            session_lines.append("Recent queries: " + ", ".join(session_context.recent_queries))
+        if session_context.active_documents:
+            session_lines.append("Active documents: " + ", ".join(session_context.active_documents))
+        
+        if len(session_lines) > 1:
+            session_lines.append("\n[Retrieved Context]")
+            session_part = "\n".join(session_lines)
+            parts.append(session_part)
+            total_chars += len(session_part)
 
     for i, chunk in enumerate(chunks):
         label = f"[Source: {chunk.file_name or 'unknown'}"

@@ -83,7 +83,7 @@ def test_answer_question_for_document_orchestrates_flow():
         match_count=7,
         session_id=None,
     )
-    mock_context.assert_called_once_with(chunks)
+    mock_context.assert_called_once_with(chunks, session_context=None)
     mock_answer.assert_awaited_once_with("What is this about?", "combined context")
 
 
@@ -162,13 +162,12 @@ def test_answer_questions_for_documents_batch_processes_queries():
         new=AsyncMock(side_effect=fake_find_similar_chunks),
     ) as mock_find, patch(
         "services.chat_service.build_context_from_chunks",
-        side_effect=lambda chunks: "|".join([c.chunk_text for c in chunks]),
+        side_effect=lambda chunks, session_context=None: "|".join([c.chunk_text for c in chunks]),
     ) as mock_context, patch(
         "services.chat_service.generate_answer",
         new=AsyncMock(side_effect=lambda question, context: f"{question}:{context}"),
     ) as mock_answer:
         result = asyncio.run(answer_questions_for_documents_batch(queries))
-
     assert [item["status"] for item in result] == ["ok", "ok"]
     assert [item["question"] for item in result] == ["Q1", "Q2"]
     assert result[0]["doc_ids"] == ["doc-a", "doc-b"]
