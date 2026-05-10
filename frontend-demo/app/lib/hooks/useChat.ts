@@ -18,7 +18,7 @@ const welcomeMessages: Message[] = [
   },
 ];
 
-export function useChat() {
+export function useChat(sessionId: string | null) {
   const [messages, setMessages] = useState<Message[]>(welcomeMessages);
   const [input, setInput] = useState("");
   const [attachment, setAttachment] = useState<AttachmentState | null>(null);
@@ -26,6 +26,18 @@ export function useChat() {
   const [inflight, setInflight] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const readyAnnouncedForDocRef = useRef<string | null>(null);
+
+  // When session changes, reset the chat state.
+  useEffect(() => {
+    if (sessionId) {
+      setMessages(welcomeMessages);
+      setInput("");
+      setAttachment(null);
+      setRemoveError(null);
+      setInflight(false);
+      readyAnnouncedForDocRef.current = null;
+    }
+  }, [sessionId]);
 
   const poll = useDocumentPolling(
     attachment?.documentId,
@@ -138,7 +150,7 @@ export function useChat() {
     setInflight(true);
 
     try {
-      const response = await sendMessage(text, attachment.documentId);
+      const response = await sendMessage(text, attachment.documentId, 5, sessionId);
       setMessages((prev) => [
         ...prev,
         {
