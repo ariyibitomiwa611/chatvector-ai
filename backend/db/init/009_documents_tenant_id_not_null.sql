@@ -3,8 +3,8 @@
 -- ────────────────────────────────────────────────────────────────────────────
 -- EXISTING INSTALLATIONS
 -- ────────────────────────────────────────────────────────────────────────────
--- If any documents still have tenant_id IS NULL, this migration skips the
--- NOT NULL constraint and leaves the existing FK unchanged. Backfill first:
+-- If any documents still have tenant_id IS NULL, this migration aborts and
+-- does not record itself in schema_migrations. Backfill first:
 --
 --   -- Option A: assign orphaned documents to a known tenant
 --   UPDATE documents
@@ -42,10 +42,13 @@ BEGIN
     SELECT COUNT(*) INTO null_count FROM documents WHERE tenant_id IS NULL;
 
     IF null_count > 0 THEN
-        RAISE NOTICE
-            'Skipping documents.tenant_id NOT NULL: % row(s) still have NULL tenant_id. Backfill and re-run 009.',
-            null_count;
-        RETURN;
+        RAISE EXCEPTION
+            'Migration 009_documents_tenant_id_not_null.sql cannot proceed: % document(s) still have NULL tenant_id. Backfill or delete orphaned rows, then re-run 009.',
+            null_count
+            USING HINT = (
+                'Example: UPDATE documents SET tenant_id = ''<tenant-id>'' '
+                'WHERE tenant_id IS NULL; or DELETE FROM documents WHERE tenant_id IS NULL.'
+            );
     END IF;
 
     ALTER TABLE documents ALTER COLUMN tenant_id SET NOT NULL;
