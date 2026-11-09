@@ -1,0 +1,47 @@
+export { ChatVectorClient } from "./client.js";
+export type { ChatVectorClientOptions } from "./client.js";
+export {
+  ChatVectorAPIError,
+  ChatVectorAuthError,
+  ChatVectorRateLimitError,
+  ChatVectorTimeoutError,
+  isChatVectorError,
+} from "./errors.js";
+export type { ChatVectorErrorKind } from "./errors.js";
+export type { RetryOptions } from "./internal/retry.js";
+export type {
+  BatchChatQuery,
+  BatchChatRequest,
+  BatchChatResponse,
+  BatchChatResult,
+  BulkUploadResult,
+  BulkUploadSummary,
+  ChatRequest,
+  ChatResponse,
+  ChatSource,
+  ChatStreamEvent,
+  CreateSessionInput,
+  DocumentListResponse,
+  DocumentResponse,
+  DocumentStatus,
+  DocumentSummary,
+  RequestOptions,
+  HistoryConfig,
+  RetrievalConfig,
+  RetrievalDebugMetadata,
+  RetrievalPresetDiscoveryResponse,
+  RetrievalScope,
+  Session,
+  SessionHistoryMessage,
+  SessionHistoryResponse,
+  SessionListResponse,
+  FeedbackType,
+  PostFeedbackInput,
+  ListFeedbackInput,
+  FeedbackItem,
+  FeedbackListResponse,
+  UploadDirectoryOptions,
+  UploadInput,
+  UploadManyOptions,
+  WaitForReadyOptions,
+} from "./models.js";

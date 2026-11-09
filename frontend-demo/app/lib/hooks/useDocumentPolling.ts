@@ -1,0 +1,446 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import {
+  DocumentNotFoundError,
+  getDocumentStatus,
+  API_BASE,
+} from "../api";
+import { PIPELINE_STAGES } from "../stageLabels";
+
+export type PolledDocumentStatus = "processing" | "ready" | "failed";
+
+function mapApiStatusToUi(
+  apiStatus: string,
+  statusDetail?: string
+): PolledDocumentStatus {
+  if (statusDetail === "replacement_in_progress") return "processing";
+  if (statusDetail === "replacement_failed") return "failed";
+  if (apiStatus === "completed") return "ready";
+  if (apiStatus === "failed") return "failed";
+  return "processing";
+}
+
+function isFailedStatusPayload(payload: {
+  status: string;
+  status_detail?: string;
+}): boolean {
+  if (payload.status_detail === "replacement_in_progress") {
+    return false;
+  }
+  return (
+    payload.status === "failed" || payload.status_detail === "replacement_failed"
+  );
+}
+
+function isTerminalStatusPayload(payload: {
+  status: string;
+  status_detail?: string;
+}): boolean {
+  if (payload.status_detail === "replacement_in_progress") {
+    return false;
+  }
+  return (
+    payload.status === "completed" ||
+    payload.status === "failed" ||
+    payload.status_detail === "replacement_failed"
+  );
+}
+
+function payloadStatusDetail(raw: unknown): string | undefined {
+  return typeof raw === "string" && raw.length > 0 ? raw : undefined;
+}
+
+function statusFileName(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/** Format a duration in milliseconds to a human-readable string. */
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+}
+function stagesBefore(currentStage: string): string[] {
+  if (currentStage === "retrying") return [];
+  const idx = PIPELINE_STAGES.indexOf(currentStage as never);
+  if (idx <= 0) return [];
+  return PIPELINE_STAGES.slice(0, idx).filter((stage) => stage !== "retrying");
+}
+
+/**
+ * Resolve the display stage from a raw SSE/poll payload.
+ *
+ * - On failure: use error.stage (the pipeline step that failed) so the
+ *   pipeline list can highlight the correct row. Fall back to the last
+ *   known non-failure stage string.
+ * - A replacement keeps `status` at `completed` or `failed` and reports
+ *   progress on `status_detail`. While that detail is
+ *   `replacement_in_progress`, show the live stage (or "queued") instead of
+ *   the prior document's terminal stage.
+ * - "retrying" is a non-terminal state shown on its own row while a retryable
+ *   attempt is in flight.
+ * - "uploaded" is only emitted by the synchronous path and maps to "queued"
+ *   (the nearest PIPELINE_STAGES entry) to avoid an indexOf miss.
+ * - "failed" itself is not a pipeline step — handled via the `failed` flag.
+ */
+function resolveDisplayStage(payload: {
+  status: string;
+  status_detail?: string;
+  stage?: string;
+  error?: { stage?: string } | null;
+}): string {
+  if (isFailedStatusPayload(payload)) {
+    const errorStage = payload.error?.stage;
+    if (
+      errorStage &&
+      errorStage !== "failed" &&
+      errorStage !== "retrying" &&
+      PIPELINE_STAGES.indexOf(errorStage as never) >= 0
+    ) {
+      return errorStage;
+    }
+    if (payload.status_detail === "replacement_failed") {
+      if (
+        typeof payload.stage === "string" &&
+        payload.stage.length > 0 &&
+        payload.stage !== "completed" &&
+        payload.stage !== "failed"
+      ) {
+        return payload.stage;
+      }
+      return "extracting";
+    }
+    // fall back to the last stage field the server sent, or a safe default
+    return payload.stage ?? "extracting";
+  }
+  if (payload.status_detail === "replacement_in_progress") {
+    if (
+      typeof payload.stage === "string" &&
+      payload.stage.length > 0 &&
+      payload.stage !== "completed" &&
+      payload.stage !== "failed"
+    ) {
+      return payload.stage === "uploaded" ? "queued" : payload.stage;
+    }
+    return "queued";
+  }
+  if (payload.status === "retrying") {
+    return "retrying";
+  }
+  if (payload.status === "uploaded" || payload.stage === "uploaded") {
+    return "queued";
+  }
+  if (typeof payload.stage === "string" && payload.stage.length > 0) {
+    return payload.stage;
+  }
+  return payload.status;
+}
+
+export function useDocumentPolling(
+  documentId: string | undefined,
+  statusEndpoint: string | undefined,
+  status: PolledDocumentStatus | undefined
+): {
+  status: PolledDocumentStatus | undefined;
+  stage: string | undefined;
+  completedStages: string[];
+  chunks: { total: number; processed: number } | undefined;
+  awaitingProcessing: boolean;
+  processingTime: string | undefined;
+  errorMessage: string | undefined;
+  /**
+   * Latest queue position observed from SSE/poll responses. Stays defined
+   * after the document leaves the queued state so callers can fall back to
+   * the upload-time value when the live one is not yet known.
+   */
+  queuePosition: number | undefined;
+  /** Latest non-blank file_name from a status payload. */
+  fileName: string | undefined;
+  /** Raw document status from the latest payload, before UI mapping. */
+  apiStatus: string | undefined;
+  /** Raw `status_detail` from the latest payload, when the server sent one. */
+  statusDetail: string | undefined;
+} {
+  const [polledUiStatus, setPolledUiStatus] = useState<
+    PolledDocumentStatus | undefined
+  >(undefined);
+  const [stage, setStage] = useState<string | undefined>(undefined);
+  const [completedStages, setCompletedStages] = useState<string[]>([]);
+  const [chunks, setChunks] = useState<
+    { total: number; processed: number } | undefined
+  >(undefined);
+  const [awaitingProcessing, setAwaitingProcessing] = useState(false);
+  const [processingTime, setProcessingTime] = useState<string | undefined>(undefined);
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+  const [queuePosition, setQueuePosition] = useState<number | undefined>(undefined);
+  const [fileName, setFileName] = useState<string | undefined>(undefined);
+  const [apiStatus, setApiStatus] = useState<string | undefined>(undefined);
+  const [statusDetail, setStatusDetail] = useState<string | undefined>(undefined);
+
+  // A toggle for environments/situations where SSE fails
+  const [useFallbackPolling, setUseFallbackPolling] = useState(false);
+
+  const enabled =
+    Boolean(documentId && statusEndpoint) && status === "processing";
+
+  const docKey = documentId ?? "";
+  const prevDocKeyRef = useRef<string>("");
+  const prevStatusRef = useRef<PolledDocumentStatus | undefined>(undefined);
+  const isRestartingProcessing =
+    status === "processing" &&
+    prevStatusRef.current !== undefined &&
+    prevStatusRef.current !== "processing";
+  const shouldReset =
+    docKey !== prevDocKeyRef.current || isRestartingProcessing;
+
+  useEffect(() => {
+    if (docKey !== prevDocKeyRef.current || isRestartingProcessing) {
+      prevDocKeyRef.current = docKey;
+      setPolledUiStatus(undefined);
+      setStage(undefined);
+      setCompletedStages([]);
+      setChunks(undefined);
+      setAwaitingProcessing(enabled);
+      setUseFallbackPolling(false);
+      setProcessingTime(undefined);
+      setErrorMessage(undefined);
+      setQueuePosition(undefined);
+      setFileName(undefined);
+      setApiStatus(undefined);
+      setStatusDetail(undefined);
+    }
+    prevStatusRef.current = status;
+  }, [docKey, status, isRestartingProcessing, enabled]);
+
+  useEffect(() => {
+    if (!enabled || !documentId || !statusEndpoint) {
+      return;
+    }
+
+    setAwaitingProcessing(true);
+
+    let cancelled = false;
+    const path = statusEndpoint;
+    let eventSource: EventSource | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    if (!useFallbackPolling && typeof window !== "undefined" && window.EventSource) {
+      // 1. Try SSE first.
+      // NOTE: The browser EventSource API does not support custom headers, so
+      // the Authorization header cannot be sent on this connection.  When the
+      // backend requires authentication (APP_ENV=production), the server will
+      // return 401, the "error" event fires below, and we automatically fall
+      // back to the authenticated polling path (getDocumentStatus uses fetch
+      // with the Authorization header).  This means SSE works only in
+      // development mode; production deployments transparently use polling.
+      const sseUrl = `${API_BASE}${path}/stream`;
+      eventSource = new EventSource(sseUrl);
+
+      eventSource.addEventListener("status", (event) => {
+        if (cancelled) return;
+        setAwaitingProcessing(false);
+
+        try {
+          const payload = JSON.parse(event.data);
+
+          const rawStage = resolveDisplayStage(payload);
+          setStage(rawStage);
+          setCompletedStages((prev) =>
+            rawStage === "retrying" ? prev : stagesBefore(rawStage)
+          );
+          if (isFailedStatusPayload(payload)) {
+            setErrorMessage(
+              payload.error?.message ||
+                (payload.status_detail === "replacement_failed"
+                  ? "Document replacement failed."
+                  : undefined)
+            );
+          } else {
+            setErrorMessage(undefined);
+          }
+
+          const c = payload.chunks;
+          if (
+            c &&
+            typeof c.total === "number" &&
+            typeof c.processed === "number"
+          ) {
+            setChunks({ total: c.total, processed: c.processed });
+          } else {
+            setChunks(undefined);
+          }
+
+          // Keep the live queue position fresh while the backend reports one.
+          // We only update when the field is present so older payloads (or a
+          // brief gap while the document transitions out of "queued") leave
+          // the previously-known value intact — the AttachmentChip gates its
+          // own display on `awaitingProcessing`, so a stale-but-defined value
+          // here is harmless once processing actually begins.
+          if (
+            typeof payload.queue_position === "number" &&
+            Number.isInteger(payload.queue_position) &&
+            payload.queue_position >= 1
+          ) {
+            setQueuePosition(payload.queue_position);
+          }
+
+          const streamedFileName = statusFileName(payload.file_name);
+          if (streamedFileName) setFileName(streamedFileName);
+
+          setApiStatus(typeof payload.status === "string" ? payload.status : undefined);
+          setStatusDetail(payloadStatusDetail(payload.status_detail));
+          const ui = mapApiStatusToUi(payload.status, payload.status_detail);
+          setPolledUiStatus(ui);
+
+          // Compute processing duration when ingestion completes
+          if (ui === "ready" && payload.created_at && payload.updated_at) {
+            const created = new Date(payload.created_at).getTime();
+            const updated = new Date(payload.updated_at).getTime();
+            if (!isNaN(created) && !isNaN(updated) && updated > created) {
+              setProcessingTime(formatDuration(updated - created));
+            }
+          }
+
+          if (isTerminalStatusPayload(payload)) {
+            eventSource?.close();
+          }
+        } catch (e) {
+          console.error("Failed to parse SSE payload", e);
+        }
+      });
+
+      eventSource.addEventListener("error", (event) => {
+        if (cancelled) return;
+
+        try {
+          if (event && "data" in event && typeof (event as MessageEvent).data === "string") {
+             const payload = JSON.parse((event as MessageEvent).data);
+             if (payload.message === "Document not found.") {
+                 setAwaitingProcessing(false);
+                 setPolledUiStatus("failed");
+                 eventSource?.close();
+                 return;
+             }
+          }
+        } catch {
+          // ignore parsing error
+        }
+
+        console.warn("SSE connection error or closed, falling back to polling");
+        eventSource?.close();
+        setUseFallbackPolling(true);
+      });
+    } else {
+      // 2. Fallback Polling (setInterval)
+      const poll = async () => {
+        if (cancelled) return;
+        try {
+          const payload = await getDocumentStatus(path);
+          if (cancelled) return;
+
+          setAwaitingProcessing(false);
+
+          const rawStage = resolveDisplayStage(payload);
+          setStage(rawStage);
+          setCompletedStages((prev) =>
+            rawStage === "retrying" ? prev : stagesBefore(rawStage)
+          );
+          if (isFailedStatusPayload(payload)) {
+            setErrorMessage(
+              payload.error?.message ||
+                (payload.status_detail === "replacement_failed"
+                  ? "Document replacement failed."
+                  : undefined)
+            );
+          } else {
+            setErrorMessage(undefined);
+          }
+
+          const c = payload.chunks;
+          if (
+            c &&
+            typeof c.total === "number" &&
+            typeof c.processed === "number"
+          ) {
+            setChunks({ total: c.total, processed: c.processed });
+          } else {
+            setChunks(undefined);
+          }
+
+          // Mirror the SSE path: refresh queue position when the polling
+          // response reports a valid value.
+          if (
+            typeof payload.queue_position === "number" &&
+            Number.isInteger(payload.queue_position) &&
+            payload.queue_position >= 1
+          ) {
+            setQueuePosition(payload.queue_position);
+          }
+
+          const polledFileName = statusFileName(payload.file_name);
+          if (polledFileName) setFileName(polledFileName);
+
+          setApiStatus(payload.status);
+          setStatusDetail(payloadStatusDetail(payload.status_detail));
+          const ui = mapApiStatusToUi(payload.status, payload.status_detail);
+          setPolledUiStatus(ui);
+
+          // Compute processing duration when ingestion completes
+          if (ui === "ready" && payload.created_at && payload.updated_at) {
+            const created = new Date(payload.created_at).getTime();
+            const updated = new Date(payload.updated_at).getTime();
+            if (!isNaN(created) && !isNaN(updated) && updated > created) {
+              setProcessingTime(formatDuration(updated - created));
+            }
+          }
+          
+          if (isTerminalStatusPayload(payload)) {
+            if (interval) clearInterval(interval);
+          }
+        } catch (e) {
+          if (e instanceof DocumentNotFoundError) {
+            if (cancelled) return;
+            setAwaitingProcessing(false);
+            setPolledUiStatus("failed");
+            if (interval) clearInterval(interval);
+            return;
+          }
+          /* next interval */
+        }
+      };
+
+      void poll();
+      interval = setInterval(poll, 2500);
+    }
+
+    return () => {
+      cancelled = true;
+      if (eventSource) {
+        eventSource.close();
+      }
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [enabled, documentId, statusEndpoint, useFallbackPolling]);
+
+  return {
+    status: shouldReset ? undefined : polledUiStatus,
+    stage: shouldReset ? undefined : stage,
+    completedStages: shouldReset ? [] : completedStages,
+    chunks: shouldReset ? undefined : chunks,
+    awaitingProcessing: enabled && (shouldReset || awaitingProcessing),
+    processingTime: shouldReset ? undefined : processingTime,
+    errorMessage: shouldReset ? undefined : errorMessage,
+    queuePosition: shouldReset ? undefined : queuePosition,
+    fileName: shouldReset ? undefined : fileName,
+    apiStatus: shouldReset ? undefined : apiStatus,
+    statusDetail: shouldReset ? undefined : statusDetail,
+  };
+}
